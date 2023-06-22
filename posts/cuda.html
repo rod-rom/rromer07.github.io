@@ -1,0 +1,650 @@
+<html>
+<header>
+    <title>CUDA</title>
+    <link rel="stylesheet" href="../css/main.css">
+</header>
+
+<body>
+    <header>
+        <a href="../index.html">Home</a>
+    </header>
+    <div class="container">
+        <div class="header">
+            <h1>Intro to CUDA programming</h1>
+            <p>Jun 20, 2023</p>
+        </div>
+        <div class="content">
+            <div style="text-align: center;">
+            </div>
+            <p>In this blog post I will give a high level overview on CUDA and how to program your first CUDA kernel.
+                CUDA programming was brought to my attention from this tweet that I stumbled upon and was interested to learn
+                more about it.</p>
+            <blockquote class="twitter-tweet" data-theme="dark">
+                <p lang="en" dir="ltr">One of most interesting programming domains to get into rn if you&#39;re
+                    young.<br><br>There are only a handful of folks that have cuda skills.<br><br>Consider it equivalent
+                    of doing vector SIMD programming in trad codebases.<br><br>High-level stuff will anyways be done by
+                    LLMs in a decade. <a href="https://t.co/orgdanpCgM">https://t.co/orgdanpCgM</a></p>&mdash; TDM (e/λ)
+                (@cto_junior) <a
+                    href="https://twitter.com/cto_junior/status/1670458989404987392?ref_src=twsrc%5Etfw">June 18,
+                    2023</a>
+            </blockquote>
+            <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+            <h2>GPUs vs. CPUs</h2>
+            <p>The reason why we want to use GPUs in the first place is because they are optimized for computing many
+                operations in parallel. This makes them ideal for tasks like machine learning, image and graphics
+                processing, video encoding, etc. CUDA is a parallel computing platform and programming model developed
+                by NVIDIA and it allows developers to utilize the computational power of NVIDIA GPUs for their own
+                computing tasks. There are two major advantages the GPU has over CPUs ...</p>
+            <ul>
+                <li>Tremendous computational throughput</li>
+                <li>High memory bandwidth</li>
+            </ul>
+            <p>This graph below illustrates how to computational throughput in NVIDIA GPUs and Intel CPUs have increased
+                over the last decade, measured in units of billions of floating point operations per second. The green
+                lines represent NVIDIA's flagship GPUs while the blue line represent Intel's flagship CPUs at different
+                points of time. We can clearly see that the amount of computational throughput the NVIDIA GPUs offer us
+                is an entire order of magnitude greater than Intel's corresponding CPUs.</p>
+            <div style="text-align: center;">
+                <img src="../assets/cuda_graph.jpg" alt="cuda graph">
+            </div>
+            <h3>Overview: Difference between CPUs and GPUs</h3>
+            <ul>
+                <li>CPU - Designed to minimize latency
+                    <ul>
+                        <li>Majoritory of silicon area dedicated to:
+                            <ul>
+                                <li>Advanced Control logic</li>
+                                <li>Large Cache</li>
+                            </ul>
+                        </li>
+
+                    </ul>
+                </li>
+
+                <li>GPU - Designed to maximize throughput
+                    <ul>
+                        <li>Majority of silicon area dedicated to:
+                            <ul>
+                                <li>Massive number of cores</li>
+                            </ul>
+                        </li>
+
+                    </ul>
+                </li>
+
+            </ul>
+            <h2>CUDA: High level Concepts</h2>
+            <figure>
+                <img src="../assets/gp104.svg" alt="gp104" style="width: 100%;">
+                <figcaption>GP104 chip design powering my GeForce GTX 1080</figcaption>
+            </figure>
+
+            <p>Before we dive into the code, let's go over some high level concepts of CUDA programming.</p>
+            <h3>Kernel</h3>
+            <p>To utilize the GPU, parts of the program that can be parallelized must be decomposed into a large number
+                of threads that can run concurrently. In CUDA, these threads are defined by special functions called
+                <i>kernels</i> The execution of a kernel is called <i>launching a kernel</i>.
+            </p>
+            <h3>Thread</h3>
+            <p>When we launch the kernel, the kernel is executed as a set of <i>threads</i>. Each thread is mapped to a
+                single CUDA core on the GPU.
+            <ul>
+                <li>Kernels are executed as a set of parallel threads</li>
+                <li>CUDA is designed to execute 1000s of Threads</li>
+                <li>CUDA threads execute in a <strong>SIMD</strong>(single instruction multiple data) fashion
+                    <ul>
+                        <li>NVIDIA calls this <strong></strong></li>
+                        <dd>
+                            <ul>
+                                <li>Single instruction multiple threads</li>
+                            </ul>
+                        </dd>
+                    </ul>
+                </li>
+                <li>Threads are similar to data-parrelel tasks
+                    <ul>
+                        <li>Each thread performs the same operations on a subset of data</li>
+                        <li>Threads execute independently</li>
+                    </ul>
+                </li>
+                <li>Threads do not execute at the same rate
+                    <ul>
+                        <li>Different paths taken if if/else statements</li>
+                        <li>Different number of iterations in a loop, etc.</li>
+                    </ul>
+                </li>
+            </ul>
+            </p>
+            <h3>Host</h3>
+            <p>The host is the CPU. The host is responsible for allocating memory on the GPU, transferring data from the
+                host to the GPU, and launching kernels on the GPU.</p>
+            <h3>Device</h3>
+            <p>The device is the GPU. The device is responsible for executing the kernel code.</p>
+            <h3>CUDA</h3>
+            <ul>
+                <li>C with extensions</li>
+                <li>Allows for heterogenous programming</li>
+            </ul>
+            <br><br>
+            <p>When we run into a part of the program that can be massively parallelized, we will pass the execution of
+                that portion of the code to the device. The host and device communicate with each other over the PCI
+                Express bus. The PCI Express bus is slow relative to the host and device and presents a huge bottleneck.
+            </p>
+
+            <h2>Thread Hierarchy</h2>
+            <figure>
+                <img src="../assets/thread_hierarchy.jpg" alt="thread hierarchy" style="width: 100%;">
+                <figcaption>Programmer's perspective versus a hardware perspective of a thread block in GPU</figcaption>
+            </figure>
+            <p>Threads are mapped to cores on the GPU based on CUDA's thread hierarchy. This is an important concept in
+                CUDA's programming model and there are three levels in the hierarchy.</p>
+            <ul>
+                <li>Thread</li>
+                <li>Block</li>
+                <li>Grid</li>
+            </ul>
+            <h3>Threads</h3>
+            <p>At the lowest level in the hierarchy, we have individual <i>threads</i>. It is the execution of a kernel
+                on a single piece of data. Each thread gets mapped to <strong>one CUDA core</strong></p>
+            <h3>Blocks</h3>
+            <p>Next, we have a structure called a <i>block</i>. Blocks are sets of threads that are grouped together
+                into blocks. When the kernel is launched the blocks get mapped onto corresponding sets of CUDA cores.
+            </p>
+            <h3>Grid</h3>
+            <p>At the highest level in the hierarchy we have <i>grids</i>. The entire kernel launch is executed as one
+                grid which is mapped onto the entire GPU unit and its memory.</p>
+            <br><br>
+            <p>Its also important to mention the dimensions of grids and blocks. They can either be 1D, 2D, or 3D. For
+                instance, let's we have a grid with dimensions 3x2. That would mean within this grid there are => 3 x 2
+                = 6 blocks in total. Now, let's say that the blocks have a dimension of 4x3. This would mean that there
+                are => 4 x 3 = 12 threads per block. In total there would be 72 total threads in the grid (6 Blocks x 12
+                Threads/Block).</p>
+            <br><br>
+            <h2>Program Flow</h2>
+            <ul>
+                <li>Host Code <ul>
+                        <li>Serial</li>
+                        <li>Runs on CPU</li>
+                        <li>Launches the Kernel</li>
+                    </ul>
+                </li>
+                <li>Device Code <ul>
+                        <li>Parallel</li>
+                        <li>Runs on GPU</li>
+                    </ul>
+                </li>
+            </ul>
+            <p>Let's take a look at some code and see how the program flow works in a CUDA program.</p>
+            <pre>
+                    <code class="language-cpp">
+                        int main(void) { // Host Code
+                            // Do sequential work on the CPU
+                        }
+                    </code>
+                </pre>
+            <p>First, we declare the main function like the start of any other program. At this point in time, any
+                sequential code is being executed on the CPU until the kernel is launched.</p>
+            <pre><code class="language-cpp">
+                        int main(void) { // Host Code
+                            // Do sequential work on the CPU
+
+                            // Launch Kernel
+                            kernel_0&lt;&lt;&lt;grid_sz0,blk_sz0&gt;&gt;&gt;(...); 
+                        }
+                    </code></pre>
+            </code></pre>
+            <p>The main function continues to run any serial code until another kernel is launched.
+                <strong>Note:</strong> The C program does not wait on the kernel's completion in order to continue. So
+                if we need to gather the results from a kernel before continuing, you need to add an explicit barrier in
+                the host code to tell the program to wait on the kernel's completion to continue.
+            </p>
+            <pre><code class="language-cpp">
+                int main(void) { // Host Code
+                    // Do sequential work on the CPU
+
+                    // Launch Kernel
+                    kernel_0&lt;&lt;&lt;grid_sz0,blk_sz0&gt;&gt;&gt;(...); 
+
+                    // Do more sequential work on the CPU
+
+                    // Launch Kernel
+                    kernel_1&lt;&lt;&lt;grid_sz1,blk_sz1&gt;&gt;&gt;(...);
+
+                    return 0;
+                }
+            </code></pre>
+            </code></pre>
+            <p>The kernel launch syntax follows the same convention as calling any C function. We start with the kernel
+                name and we specify any parameters in the parantheses. The only difference is that we must specify the
+                configuration parameters, i.e. the <i>grid size</i> and <i>block size</i> within the triple chevron
+                brackets. Before we launch a kernel, we need to configure its launch parameters. The code below
+                demonstrates how to configure the parameters. <code>dim3</code> is a CUDA data structure which are
+                essentially a set of integer values which define the x, y, and z dimensions of the grid/block,
+                respectively. If no values are passed,
+                the default is set to <code>(1, 1, 1)</code></p>
+            <pre><code class="language-cpp">
+                // Block and Grid dimensions
+                // a.k.a Configuration parameters
+                dim3 grid_size(3,2);
+                dim3 block_size(4,3);
+
+                // Launch Kernel
+                kernelName&lt;&lt;&lt;grid_size,block_size&gt;&gt;&gt;( ... );
+            </code></pre>
+            <p>Since the CPU and GPU have different memory locations, we need to allocate the device memory in order to
+                operate on the data. The CUDA API follows a similar style to allocating device memory as C. The list
+                below gives you a summarized look at how memory is allocated in C and CUDA. We also need to copy the
+                data over from device to host and vice versa using
+                <code>cudaMemcpy(dst, src, numBytes, direction)</code>
+            </p>
+            <ul>
+                <li>Allocate memory in C <ul>
+                        <li><code>malloc(...);</code></li>
+                    </ul>
+                </li>
+                <li>De-allocate memory in C<ul>
+                        <li><code>free(...);</code></li>
+                    </ul>
+                </li>
+                <li>Allocate memory in CUDA<ul>
+                        <li><code>cudaMalloc(LOCATION, SIZE);</code>
+                            <ul>
+                                <li>1st Argument</li>
+                                <ul>
+                                    <li>Memory location on Device to allocate memory</li>
+                                    <li>An address in the GPU's memory</li>
+                                </ul>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <li>De-allocate memory in CUDA<ul>
+                        <li><code>cudaFree();</code></li>
+                    </ul>
+                </li>
+                <li>Copy Data Host ↔ Device <ul>
+                        <li><code>cudaMemcpy(dst, src, numBytes, direction)</code></li>
+                        <li><code>numBytes = N*sizeof(type)</code></li>
+                        <li>direction<ul>
+                                <li><code>cudaMemcpyHostToDevice</code></li>
+                                <li><code>cudaMemcpyDeviceToHost</code></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+            <p>Here is how it looks like in code.</p>
+            <pre><code class="language-cpp">
+                int main(void) { // Host Code 
+
+                    // Declare variables
+                    int *h_C, *d_C; // Host and Device pointers
+
+                    // Allocate memory on the device
+                    cudaMalloc((void**)&d_c, sizeof(int));
+
+                    // Copy data from Host to Device
+                    cudaMemcpy(d_c, h_C, sizeof(int), cudaMemcpyHostToDevice);
+
+                    // Configuration parameters
+                    dim3 grid_size(1); dim3 block_size(1);
+                    
+                    //Launch kernel
+                    kernel&lt;&lt;&lt;grid_size,block_size&gt;&gt;&gt;(...);
+
+                    // Copy data from Device to Host
+                    cudaMemcpy(h_C, d_C, sizeof(int), cudaMemcpyDeviceToHost);
+
+                    // De-allocate memory
+                    cudaFree(d_C); free(h_C);
+
+                    return 0;
+                }
+            </code></pre>
+            <p>To define a CUDA kernel we need to insert what is called a declaration specifier which alerts the
+                compiler that a function should be compiled to run on device. This is indicated using the keyword
+                <code>__global__</code> and note that there are two underscores in the beginning and end of the keyword.
+                The kernel must also be declared with a void return type. Any results that the kernel computes are
+                stored in the device's memory.
+                Also, variables that are operated on the kernel need to be passed by reference. The code below
+                demonstrates how to define a kernel and passes two pointer argumentes that point to the memory address
+                of the variable stored in the device's memory.
+            </p>
+            <pre><code class="language-cpp">
+                __global__ void kernelName(int *d_C, int *d_in) {
+                    
+                    // Perform this operation for every thread
+                    d_out[0] = d_in[0];
+                }
+            </code></pre>
+            <h2>Parallelize for loop</h2>
+            <p>CUDA allows us to index into threads using the built-in <code>threadIdx</code> variable. To index into a
+                thread based on their corresponding dimension using the folowing:
+            <ul>
+                <li><code>threadIdx.x</code></li>
+                <li><code>threadIdx.y</code></li>
+                <li><code>threadIdx.z</code></li>
+            </ul>
+            <code>threadIdx</code> is only unique within its own thread block. To determine the unique grid index of a
+            thread we can use the following:
+            <pre><code class="language-cpp">
+            int idx = threadIdx.x + blockDim.x * blockIdx.x;
+            </code></pre>
+            </p>
+            <p>The code below is a comparison of a for loop in a CPU program and a CUDA program.
+            <pre><code class="language-cpp">
+                <strong>CPU program</strong>
+                    void increment_cpu(int *a, int N) {
+                        for (int i = 0; i < N; i++) {
+                            a[i] = a[i] + 1;
+                        }
+                    }
+                    
+                    int main(void) {
+                        int a[N] = // ...
+                    }
+                </code>
+
+                <strong>CUDA program</strong><code class="language-cpp">
+                    __global__ void increment_gpu(int *a, int N) {
+                        int idx = threadIdx.x;
+                        if (idx < N) {
+                            a[idx] = a[idx] + 1;
+                        }
+                    }
+                    
+                    int main(void) {
+                        int h_a[N] = // ...
+
+                        // Allocate arrays in Device memory
+                        int* d_a; cudaMalloc((void**)&d_a, N*sizeof(int));
+
+                        // Copy memory from Host to Device
+                        cudaMemcpy(d_a, h_a, N*sizeof(int), cudaMemcpyHostToDevice);
+
+                        // Block and Grid dimensions
+                        dim3 grid_size(1); dim3 block_size(N);
+
+                        // Launch Kernel
+                        increment_gpu&lt;&lt;&lt;grid_size,block_size&gt;&gt;&gt;(d_a, N);
+                        // ...
+
+                        return 0;
+                    }
+                    </code>
+            </pre>
+            </p>
+            <h2>Memory Model</h2>
+            <p>Another fundemental concept in CUDA is the memory model. This corresponds with the thread hierarchy that
+                was discussed earlier. We have threads which has its own local memory and has a private scope meaning
+                that the data cannot be accessed by any other thread. When a thread finishes it's execution it gets
+                deleted. We then have shared memory which corresponds to blocks in the thread hierarchy. The highest
+                level are grids which correspond with global memory</p>
+            <ul>Threads ↔ Local Memory (and Registers)<li>Scope: Private to its corresponding Thread. Each block has its
+                    own region of shared memory</li>
+                <li>Lifetime: Thread</li>
+                Blocks ↔ Shared Memory<li>Scope: Every Thread in the Block has access</li>
+                <li>Lifetime Block</li>
+                Grids ↔ Global Memory<li>Scope: Every Thread in all Grids have access</li>
+                <li>Lifetime: Entire program in Host code - <code>main()</code></li>
+            </ul>
+            <p>Relative speed of memory spaces:
+            <pre>
+                    Registers       <<<       Shared Memory       <<<       Local≈Global Memory     <<<       Host(PCIe)
+                     ~8Tb/s                     ~1Tb/s                           ~200Gb/s                       ~5Gb/s
+                     ~1clock                    ~32clocks                        ~800clocks                     
+                </pre>
+            </p>
+            <p>Any time we allocate memory on the device by using <code>cudaMalloc</code> it is allocated in the global
+                memory. Since global memory is stored in <i>off-chip DRAM</i>, it exhibits very slow memory
+                characteristics relative to the other memory spaces. The use of global memory can't be avoided so we
+                must transfer data between the host and device using this memory space. However, the
+                <strong>goal</strong> is to minimize the global memory traffic since it is so slow. The upside to global
+                memory is that it's very large. It can be accessed with ...
+            <ul>
+                <li><code>cudaMalloc()</code></li>
+                <li><code>cudaMemset()</code></li>
+                <li><code>cudaMemcpy()</code></li>
+                <li><code>cudaFree()</code></li>
+            </ul>
+            </p>
+            <p>Each thread has its own private local memory and registers that cannot be accessed by any other thread.
+                Any variable that is declared inside of a kernel is stored in a register. If the size of the contents
+                stored in this variable become too large to fit into the register space then the contents will spill
+                over into the local memory. Registers spilling into local memory is very undesirable because although
+                registers are the fastest form of memory in CUDA, local memory is one of the slowest regions.
+            <ul>
+                <li>Variables declared in a Kernel are stored in Registers</li>
+                <ul>
+                    <li>On-chip</li>
+                    <li>Fastest form of memory</li>
+                </ul>
+                <li>Arrays too large to fit into Registers spill over into <i>Local Memory</i>
+                    <ul>
+                        <li>Off-chip</li>
+                        <li>Compiler controlled</li>
+                        <li>"Local" refers to scope, not location</li>
+                        <li>Local to each Thread</li>
+                    </ul>
+                </li>
+            </ul>
+            </p>
+            <p>Shared memory is special for <i>two reasons</i>
+            <ol>
+                <li>Extremely fast as it is implemented on chip.</li>
+                <li>It allows for threads within a block to talk to each other</li>
+            </ol>
+            In a sense, shared memory can sort of be though of as user-defined L1 cache.
+            </p>
+            <pre><code class="language-cpp">
+                    __global__ void kernel(int* in, int N) {
+                        int i = threadIdx.x + blockDim.x * blockIdx.x;
+
+                        // Allocate a shared array
+                        __shared__ int shared_array[N];
+
+                        // each thread writes to one element of shared_array
+                        shared_array[i] = in[i];
+
+                        // Do more stuff
+                        // ...
+                    }
+                </code></pre>
+            <p>Constant memory doesn't really have a corresponding level of thread hierarchy space. The idea behind
+                constant memory is since GPUs don't have a very big cache, we can implement a very simple kind of cache
+                using <i>constant memory</i> Constant memory is actually very large since it's actuall located in the
+                device's DRAM all threads have access to it <i>but it is read-only memory</i> We want to use this memory
+                space for data that is accessed frequently but does not change its contents throughout the kernel's
+                execution.
+            <ul>
+                <li>Special Region of Device memory</li>
+                <ul>
+                    <li>Used for data with unchanging contents throughout kernel execution</li>
+                    <li>Read-only from kernel</li>
+                </ul>
+                <li>Off-chip</li>
+                <li>Constant memory is aggresively cached into on-chip memory</li>
+                </p>
+            </ul><br><br>
+            <h2>Thread Synchronization</h2>
+            <p>Since threads are allowed to run in parallel, we can run into race conditions. A race condition commonly
+                occurs when a thread reads from a memory location before the correct data has been stored into that
+                memory location or when a thread writes its results to a specific memory location before another thread
+                has read data from that location. In order to avoid these kind of situations we can use
+                <code>__synchthreads();</code> which acts like a barrier. When a thread is met with a barrier, it will
+                hault it's execution and will wait until all threads have reached the barrier.
+            </p>
+            <pre>
+                threads      barrier(now, ther are synchronized)
+            -->              |-->
+            ------->         |-->
+            ---->            |-->
+            ---------->      |-->
+            </pre>
+            <p>Below is a code sample of explicit barriers being used to shift elements to the left by one in an array.
+            <pre><code class="language-cpp">
+                __global__ void kernel(int* a) {
+                    int i = threadIdx.x + blockDim.x * blockIdx.x;
+
+                    // Shift elements to the left by one
+                    if (i < 3){
+                        int temp = a[i];
+                        __syncthreads();
+                        a[i-1] = temp;
+                        __syncthreads(); // Ensure all threads have written to a[i-1] before continuing
+                    }
+                }
+            </code></pre>
+            The Host and Device operate asynchronously unless the host code is explicitly specified to wait on the
+            device. However, the execution of consecutive kernel launches do operate synchronously which can be thought
+            of as an implicit barrier between kernel launches.
+            <pre><code class="language-cpp">
+                int main() {
+                    // Do sequential stuff
+
+                    // Launch kernel 
+                    kernel_0&lt;&lt;&lt;grid_sz0, blk_sz0&gt;&gt;&gt;(...);
+
+                    // Force Host to wait on the 
+                    // completion of the Kernel
+                    cudaDeviceSynchronize();
+
+                    // Copy data from Device to Host 
+                    cudaMemcpy(...);
+
+                    // Do sequential stuff
+                    // ...
+
+                    return 0;
+                }
+            </code></pre>
+            </p>
+            <h2>Creating a CUDA program from scratch: matrix multiplication</h2>
+            <p>To run a CUDA program you need to set up your development environment and install the necessary tools. To
+                begin, you need to set up a CUDA development enviroment. Here are the steps:
+            <ol>
+                <li>Install CUDA Toolkit: Download and install the latest version of the CUDA Toolkit from the NVIDIA
+                    website. Make sure to choose the version compatible with your GPU and operating system.</li>
+                <li>Install a C/C++ Compiler: Ensure you have a compatiable C/C++ compiler installed on your system. The
+                    CUDA Toolkit supports various compilers such as GCC, Clang, or Microsoft Visual C++.</li>
+                <li>Set up CUDA libraries: Once the CUDA Toolkit is installed, make sure to set up the necessary
+                    environment variables from your operating system. THe CUDA Toolkit documentation provides guidance
+                    on configuring environment variables for different platforms.</li>
+                <li>Choose an Integrated Development Environment (IDE): While not mandatory, using an IDE can be useful.
+                    Some options include Visual Studio with CUDA Toolkit integration, JetBrains CLion, etc.</li>
+            </ol>
+            The next step is to define the kernel function. This function will perform a matrix multiplication on N X N
+            matrices.
+            <pre><code class="language-cpp">
+                __global__ void matrixMultiply(const float* A, const float*B, float* C, int N) {
+                    int row = blockIdx.y * blockDim.y + threadIdx.y;
+                    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+                    if (row < N && col < N) {
+                        float sum = 0.0f;
+                        for (int i = 0; i < N; i++) {
+                            sum += A[row * N + i] * B[i * N + col];
+                        }
+                        C[row * N + col] = sum;
+                    }
+                }
+            </code></pre>
+            Next, we will write the host code that manages memory allocation, data transfer between the host and the
+            device and launches the kernel function.
+            <pre><code class="language-cpp">
+                #include &lt;stdio.h&gt;
+
+                // Matrix mul kernel fnt.
+                __global__ void matrixMultiply(const float* A, const float*B, float* C, int N) {
+                    int row = blockIdx.y * blockDim.y + threadIdx.y;
+                    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+                    if (row < N && col < N) {
+                        float sum = 0.0f;
+                        for (int i = 0; i < N; i++) {
+                            sum += A[row * N + i] * B[i * N + col];
+                        }
+                        C[row * N + col] = sum;
+                    }
+                }
+
+                int main(void) {
+                    const int N = 3; // Size of matrices (N x N)
+
+                    // Allocate memory for output matrix on the Host (CPU)
+                    float* h_C = (float*)malloc(N * N * sizeof(float));
+
+                    // Initialize input matrices h_A and h_B
+                    float h_A = {1, 0, 0,
+                                 0, 1, 0,
+                                 0, 0, 1};
+                    float h_B = {2, 5, 1,
+                                 6, 7, 1,
+                                 1, 8, 1};
+
+                    // Allocate memory for input and output matrices on the Device (GPU)
+                    float* d_A;
+                    float* d_B;
+                    float* d_C;
+                    cudaMalloc((void**)&d_A, N * N * sizeof(float));
+                    cudaMalloc((void**)&d_B, N * N * sizeof(float));
+                    cudaMalloc((void**)&d_C, N * N * sizeof(float));
+
+                    // Copy input matrices from host to device 
+                    cudaMemcpy(d_A, h_A, N * N * sizeof(float), cudaMemcpyHostToDevice);
+                    cudaMemcpy(d_B, h_B, N * N * sizeof(float), cudaMemcpyHostToDevice);
+
+                    // Define grid and block dimensions for launching the kernel
+                    dim3 blockSize(16, 16);
+                    dim3 gridSize((N + blockSize.x - 1) / blockSize.x, (N + blockSize.y - 1) / blockSize.y);
+
+                    // Launch the matrix multiplication kernel
+                    matrixMultiply&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_A, d_B, d_C, N);
+
+                    // Copy the result matrix from device to host
+                    cudaMemcpy(h_C, d_C, N * N * sizeof(float), cudaMemcpyDeviceToHost);
+
+                    // Print the result matrix
+                    for (int i = 0; i < N; ++i) {
+                        for (int j = 0; j < N; ++j) {
+                            printf("%f ", h_C[i * N + j]);
+                        }
+                        printf("\n");
+                    }
+
+                    // Free device and host memory
+                    cudaFree(d_A);
+                    cudaFree(d_B);
+                    cudaFree(d_C);
+                    free(h_A);
+                    free(h_B);
+                    free(h_C);
+
+                    return 0;
+                }
+            </code></pre>
+            To compile and run the CUDA program, follow these steps:
+            <ol>
+                <li>Save the complete code into a file with the <code>.cu</code> extension, such as
+                    <code>matrixMul.cu</code>.</li>
+                <li>Open the terminal or command prompt and navigate to the directory where the
+                    <code>matrixMul.cu</code> file is located.</li>
+                <li>Compile the CUDA program using the <code>nvcc</code> compiler, which is part of the CUDA Toolkit.
+                    Run the following command:
+                    <pre>nvcc matrixMul.cu -o matrixMul</pre> This command will compile the CUDA code and generate an
+                    executable named <code>matrixMul.exe</code>
+                </li>
+                <li>Run the compiled executable:<pre><code>./matrixMul</code></pre></li>
+                Your output should look like this if you followed the same input values as in the example above:
+                <pre>
+                    $ ./matrixMul
+                    2.000000 5.000000 1.000000
+                    6.000000 7.000000 1.000000
+                    1.000000 8.000000 1.000000
+                </pre>
+            </ol>
+            </p>
+        </div>
+</body>
+
+</html>
