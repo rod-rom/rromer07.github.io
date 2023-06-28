@@ -1,0 +1,165 @@
+<html>
+<header>
+    <title>ORB_SLAM3 Installation</title>
+    <link rel="stylesheet" href="../css/main.css">
+</header>
+
+<body>
+    <header>
+        <a href="../index.html">Home</a>
+    </header>
+    <div class="container">
+        <div class="header">
+            <h1>ORB_SLAM3 Installation</h1>
+            <p>Jun 28, 2021</p>
+        </div>
+        <div class="content">
+            <div style="text-align: center;">
+                <img src="../assets/orb_slam3.png" alt="orb-slam#" width="600px">
+            </div>
+            <p>
+                I've been trying to install ORB_SLAM3 for a while now, and I've been running into a lot of issues. I've
+                been following the instructions on the <a href="https://github.com/UZ-SLAMLab/ORB_SLAM3">GitHub
+                    repository</a>, but I've been running into a lot of issues. I've been trying to install it on my
+                Windows 10 host but was running into problems when building the project.</p>
+            <p> I then tried to install it on my Ubuntu 20.04 virtual machine finally got it to build. Here are the
+                steps to run monocular ORB_SLAM3 on a fresh installed Ubuntu 20.04 LTS</p>
+            <ol>
+                <li>Install dependencies</li>
+                <ul>
+                    <li>sudo apt-get install build-essential</li>
+                    <li>sudo apt-get install cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev
+                        libswscale-dev</li>
+                    <li>sudo apt-get install python-dev python-numpy libtbb2 libtbb-dev libjpeg-dev libpng-dev
+                        libtiff-dev libdc1394-22-dev</li>
+                    <li>sudo apt-get install libavcodec-dev libavformat-dev libswscale-dev libv4l-dev</li>
+                    <li>sudo apt-get install libxvidcore-dev libx264-dev</li>
+                    <li>sudo apt-get install libatlas-base-dev gfortran</li>
+                    <li>sudo apt-get install libprotobuf-dev protobuf-compiler</li>
+                    <li>sudo apt-get install libgoogle-glog-dev libgflags-dev</li>
+                    <li>sudo apt-get install libgphoto2-dev libeigen3-dev libhdf5-dev doxygen</li>
+                </ul>
+                <br><br>
+                <li>Install OpenCV 4.5.1</li>
+                <ul>
+                    <li>cd ~</li>
+                    <li>mkdir dev && cd dev</li>
+                    <li>git clone https://github.com/opencv/opencv.git</li>
+                    <li>cd opencv</li>
+                    <li>git checkout 4.5.1</li>
+                </ul>
+                <br>
+                <ul>
+                    Make the follow changes to the file using the command <i>gedit
+                        ./modules/videoio/src/cap_ffmpeg_impl.hpp</i>.
+                    Put the following code at the top of the header file.
+                    <li><code>#define AV_CODEC_FLAG_GLOBAL_HEADER (1 << 22)</code></li>
+                    <li><code>#define CODEC_FLAG_GLOBAL_HEADER AV_CODEC_FLAG_GLOBAL_HEADER</code></li>
+                    <li><code>#define AVFMT_RAWPICTURE 0x0020</code></li>
+                    Save and close the file.
+                </ul>
+                <br>
+                <ul>
+                    <li>mkdir build && cd build</li>
+                    <li>cmake -D CMAKE_BUILD_TYPE=Release -D WITH_CUDA=OFF -D CMAKE_INSTALL_PREFIX=/usr/local ..</li>
+                    <li>make -j$(nproc)</li>
+                    <li>sudo make install</li>
+                </ul>
+                </ul>
+                <br><br>
+                <li>Install Pangolin</li>
+                <ul>
+                    <li>cd ~</li>
+                    <li>git clone https://github.com/stevenlovegrove/Pangolin.git</li>
+                    <li>cd Pangolin</li>
+                    <li>mkdir build && cd build</li>
+                    <li>cmake .. -D CMAKE_BUILD_TYPE=Release</li>
+                    <li>make -j$(nproc)</li>
+                    <li>sudo make install</li>
+                </ul><br><br>
+                <li>Install ORB-SLAM3</li>
+                <ul>
+                    <li>cd ~</li>
+                    <li>git clone https://github.com/UZ-SLAMLab/ORB_SLAM3.git</li>
+                    <li>cd ORB_SLAM3</li>
+                    <li>chmod +x build.sh</li>
+                    Before we build we need to make the following changes.
+                    <li>gedit CMakeLists.txt</li>
+                    <li>Change line 15 from <code># Check C++11 or C++0x support</code> to <code># Check C++14 or C++0x
+                            support</code></li>
+                    <li>Change line 17 from <code>CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)</code>
+                        to
+                        <code>CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)</code>
+                    </li>
+                    <li>Change line 19 from <code>if(COMPILER_SUPPORTS_CXX11)</code> to
+                        <code>if(COMPILER_SUPPORTS_CXX14)</code>
+                    </li>
+                    <li>Change line 20 from <code>set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")</code>to
+                        <code>set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")</code>
+                    </li>
+                    <li>Change line 22 from <code>message(STATUS "Using flag -std=c++11.")</code> to <code>message(STATUS "Using
+                            flag -std=c++14.")</code></li>
+                    <li>Change line 28 from
+                        <code>message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11
+                            support. Please use a different C++ compiler.")</code> to <code>message(FATAL_ERROR "The compiler
+                            ${CMAKE_CXX_COMPILER} has no C++14 support. Please use a different C++ compiler.")</code>
+                    </li>Save and close file.
+                    <li>gedit ./Examples/Monocular/mono_euroc.cc</li>
+                    <li>Change line 83 from
+                        <code>ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::MONOCULAR, false);</code>
+                        to <code>ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::MONOCULAR, true);</code>
+                    </li>
+                    Save and close file.
+                    <li>sudo ldconfig</li>
+                    <li>./build.sh</li>
+                </ul><br><br>
+                <li>Download test datasets</li>
+                <ul>
+                    <li>cd ~</li>
+                    <li>mkdir -p Datasets/EuRoc</li>
+                    <li>cd Datasets/EuRoc</li>
+                    <li>wget -c
+                        http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip
+                    </li>
+                    <li>mkdir MH01</li>
+                    <li>unzip MH_01_easy.zip -d MH01/</li>
+                </ul><br><br>
+                <li>Run ORB-SLAM3</li>
+                <ul>
+                    <li>cd ~/ORB_SLAM3</li>
+                    Monocular:
+                    <li>./Examples/Monocular/mono_euroc ./Vocabulary/ORBvoc.txt ./Examples/Monocular/EuRoC.yaml
+                        ~/Datasets/EuRoc/MH01 ./Examples/Monocular/EuRoC_TimeStamps/MH01.txt dataset-MH01_mono</li>
+                    Monocular + Inertial:
+                    <li>./Examples/Monocular-Inertial/mono_inertial_euroc ./Vocabulary/ORBvoc.txt
+                        ./Examples/Monocular-Inertial/EuRoC.yaml ~/Datasets/EuRoc/MH01
+                        ./Examples/Monocular-Inertial/EuRoC_TimeStamps/MH01.txt dataset-MH01_monoi</li>
+                    Stereo:
+                    <li>./Examples/Stereo/stereo_euroc ./Vocabulary/ORBvoc.txt ./Examples/Stereo/EuRoC.yaml
+                        ~/Datasets/EuRoc/MH01 ./Examples/Stereo/EuRoC_TimeStamps/MH01.txt dataset-MH01_stereo</li>
+                    Stereo + Inertial:
+                    <li>./Examples/Stereo-Inertial/stereo_inertial_euroc ./Vocabulary/ORBvoc.txt
+                        ./Examples/Stereo-Inertial/EuRoC.yaml ~/Datasets/EuRoc/MH01
+                        ./Examples/Stereo-Inertial/EuRoC_TimeStamps/MH01.txt dataset-MH01_stereoi</li>
+                </ul><br><br>
+                <li>Validate Estimate vs. Ground Truth</li>
+                <ul>
+                    <li>sudo apt install curl</li>
+                    <li>cd ~/Desktop</li>
+                    <li>curl https://bootstrap.pypa.io/2.7/get-pip.py --output get-pip.py</li>
+                    <li>sudo python2 get-pip.py</li>
+                    <li>pip2.7 install numpy matplotlib</li>
+                    Run and plot ground Truth:
+                    <li>cd ~/dev/ORB_SLAM3</li>
+                    <li>./Examples/Stereo/stereo_euroc ./Vocabulary/ORBvoc.txt ./Examples/Stereo/EuRoC.yaml
+                        ~/Datasets/EuRoc/MH01 ./Examples/Stereo/EuRoC_TimeStamps/MH01.txt dataset-MH01_stereo</li>
+                    Plot estimate vs. ground truth:
+                    <li>cd ~/dev/ORB_SLAM3</li>
+                    <li>python evaluation/evaluate_ate_scale.py evaluation/Ground_truth/EuRoC_left_cam/MH01_GT.txt
+                        f_dataset-MH01_stereo.txt --plot MH01_stereo.pdf
+                    </li>
+                    Open pdf file <i>MH01_stereo.pdf</i> to see plot.
+                </ul>
+            </ol>
+
+</html>
