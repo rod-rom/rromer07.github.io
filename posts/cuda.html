@@ -2,6 +2,7 @@
 <header>
     <title>CUDA</title>
     <link rel="stylesheet" href="../css/main.css">
+    <link href="../css/prism.css" rel="stylesheet" />
 </header>
 
 <body>
@@ -19,7 +20,7 @@
             <p>In this blog post I will give a high level overview on CUDA and how to program your first CUDA kernel.
                 CUDA programming was brought to my attention from this tweet that I stumbled upon and was interested to learn
                 more about it.</p>
-            <blockquote class="twitter-tweet" data-theme="dark">
+            <blockquote style="text-align: center;"class="twitter-tweet" data-theme="dark">
                 <p lang="en" dir="ltr">One of most interesting programming domains to get into rn if you&#39;re
                     young.<br><br>There are only a handful of folks that have cuda skills.<br><br>Consider it equivalent
                     of doing vector SIMD programming in trad codebases.<br><br>High-level stuff will anyways be done by
@@ -176,7 +177,7 @@
             </ul>
             <p>Let's take a look at some code and see how the program flow works in a CUDA program.</p>
             <pre>
-                    <code class="language-cpp">
+                    <code class="language-c">
                         int main(void) { // Host Code
                             // Do sequential work on the CPU
                         }
@@ -184,7 +185,7 @@
                 </pre>
             <p>First, we declare the main function like the start of any other program. At this point in time, any
                 sequential code is being executed on the CPU until the kernel is launched.</p>
-            <pre><code class="language-cpp">
+            <pre><code class="line-numbers language-c">
                         int main(void) { // Host Code
                             // Do sequential work on the CPU
 
@@ -198,7 +199,7 @@
                 if we need to gather the results from a kernel before continuing, you need to add an explicit barrier in
                 the host code to tell the program to wait on the kernel's completion to continue.
             </p>
-            <pre><code class="language-cpp">
+            <pre><code class="language-c">
                 int main(void) { // Host Code
                     // Do sequential work on the CPU
 
@@ -222,7 +223,7 @@
                 essentially a set of integer values which define the x, y, and z dimensions of the grid/block,
                 respectively. If no values are passed,
                 the default is set to <code>(1, 1, 1)</code></p>
-            <pre><code class="language-cpp">
+            <pre><code class="language-c">
                 // Block and Grid dimensions
                 // a.k.a Configuration parameters
                 dim3 grid_size(3,2);
@@ -274,7 +275,7 @@
                 </li>
             </ul>
             <p>Here is how it looks like in code.</p>
-            <pre><code class="language-cpp">
+            <pre><code class="language-c">
                 int main(void) { // Host Code 
 
                     // Declare variables
@@ -310,7 +311,7 @@
                 demonstrates how to define a kernel and passes two pointer argumentes that point to the memory address
                 of the variable stored in the device's memory.
             </p>
-            <pre><code class="language-cpp">
+            <pre><code class="language-c">
                 __global__ void kernelName(int *d_C, int *d_in) {
                     
                     // Perform this operation for every thread
@@ -327,12 +328,12 @@
             </ul>
             <code>threadIdx</code> is only unique within its own thread block. To determine the unique grid index of a
             thread we can use the following:
-            <pre><code class="language-cpp">
+            <pre><code class="language-c">
             int idx = threadIdx.x + blockDim.x * blockIdx.x;
             </code></pre>
             </p>
             <p>The code below is a comparison of a for loop in a CPU program and a CUDA program.
-            <pre><code class="language-cpp">
+            <pre><code class="language-c">
                 <strong>CPU program</strong>
                     void increment_cpu(int *a, int N) {
                         for (int i = 0; i < N; i++) {
@@ -345,7 +346,7 @@
                     }
                 </code>
 
-                <strong>CUDA program</strong><code class="language-cpp">
+                <strong>CUDA program</strong><code class="language-c">
                     __global__ void increment_gpu(int *a, int N) {
                         int idx = threadIdx.x;
                         if (idx < N) {
@@ -436,7 +437,7 @@
             </ol>
             In a sense, shared memory can sort of be though of as user-defined L1 cache.
             </p>
-            <pre><code class="language-cpp">
+            <pre><code class="language-c">
                     __global__ void kernel(int* in, int N) {
                         int i = threadIdx.x + blockDim.x * blockIdx.x;
 
@@ -482,7 +483,7 @@
             ---------->      |-->
             </pre>
             <p>Below is a code sample of explicit barriers being used to shift elements to the left by one in an array.
-            <pre><code class="language-cpp">
+            <pre><code class="language-c">
                 __global__ void kernel(int* a) {
                     int i = threadIdx.x + blockDim.x * blockIdx.x;
 
@@ -498,7 +499,7 @@
             The Host and Device operate asynchronously unless the host code is explicitly specified to wait on the
             device. However, the execution of consecutive kernel launches do operate synchronously which can be thought
             of as an implicit barrier between kernel launches.
-            <pre><code class="language-cpp">
+            <pre><code class="language-c">
                 int main() {
                     // Do sequential stuff
 
@@ -535,7 +536,7 @@
             </ol>
             The next step is to define the kernel function. This function will perform a matrix multiplication on N X N
             matrices.
-            <pre><code class="language-cpp">
+            <pre><code class="language-c">
                 __global__ void matrixMultiply(const float* A, const float*B, float* C, int N) {
                     int row = blockIdx.y * blockDim.y + threadIdx.y;
                     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -551,7 +552,7 @@
             </code></pre>
             Next, we will write the host code that manages memory allocation, data transfer between the host and the
             device and launches the kernel function.
-            <pre><code class="language-cpp">
+            <pre><code class="language-cpp"> //C++
                 #include &lt;stdio.h&gt;
 
                 // Matrix mul kernel fnt.
@@ -645,6 +646,7 @@
             </ol>
             </p>
         </div>
+        <script src="../prism.js"></script>
 </body>
 
 </html>
