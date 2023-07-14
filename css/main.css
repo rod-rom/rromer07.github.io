@@ -26,6 +26,7 @@ title {
     margin: auto;
     width: 50%;
     padding: 10px;
+    position: relative;
 }
 
 .header {
@@ -51,4 +52,11 @@ figcaption {
   font-style: italic;
   padding: 2px;
   text-align: center;
+}
+
+.twitter-tweet {
+    margin: auto;
+    width: 50%;
+    padding: 10px;
+    position: relative;
 }
